@@ -262,8 +262,14 @@ static void fox_show_progress (struct fox_node *node)
             fox_output_append_rt (rt[node_i + 1], node[node_i].nid + 1);
         }
 
-        tot_sec += node[node_i].stats.rw_sect;
-        totalb += node[node_i].stats.brw_sec;
+        //tot_sec += node[node_i].stats.rw_sect;
+        //totalb += node[node_i].stats.brw_sec;
+        
+        totalb = node[node_i].stats.brw_sec / (long double) (1024 * 1024);
+        tot_sec = (node[node_i].stats.rw_sect / (long double) SEC64);
+        
+        th += (totalb == 0 || tot_sec == 0) ? 0 : totalb / tot_sec;
+        
         io_count += node[node_i].stats.iops;
         node[node_i].stats.rw_sect = 0;
         node[node_i].stats.brw_sec = 0;
@@ -276,10 +282,10 @@ static void fox_show_progress (struct fox_node *node)
     }
     wl_prog = (uint16_t) ((double) wl_prog / (double) node[0].wl->nthreads);
 
-    totalb = totalb / (long double) (1024 * 1024);
-    tot_sec = (tot_sec / (long double) SEC64) / alive;
+    //totalb = totalb / (long double) (1024 * 1024);
+    //tot_sec = (tot_sec / (long double) SEC64) / alive;
 
-    th = (totalb == 0 || tot_sec == 0) ? 0 : totalb / tot_sec;
+    //th = (totalb == 0 || tot_sec == 0) ? 0 : totalb / tot_sec;
     iops = (io_count == 0 || tot_sec == 0) ?
                                           0 : (long double) io_count / tot_sec;
 
