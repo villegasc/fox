@@ -218,7 +218,7 @@ static void fox_show_progress (struct fox_node *node)
 {
     int node_i, i, alive;
     uint16_t n_prog, wl_prog = 0;
-    long double tot_sec = 0, totalb = 0, th, iops;
+    long double tot_sec = 0, totalb = 0, th = 0, iops;
     uint64_t usec, io_count = 0;
     struct fox_output_row_rt **rt;
 
@@ -265,12 +265,12 @@ static void fox_show_progress (struct fox_node *node)
         //tot_sec += node[node_i].stats.rw_sect;
         //totalb += node[node_i].stats.brw_sec;
         
-        if (!(node[node_i].stats.flags & FOX_FLAG_DONE)) {
+       // if (!(node[node_i].stats.flags & FOX_FLAG_DONE)) {
             totalb = node[node_i].stats.brw_sec / (long double) (1024 * 1024);
             tot_sec = (node[node_i].stats.rw_sect / (long double) SEC64);
         
             th += (totalb == 0 || tot_sec == 0) ? 0 : totalb / tot_sec;
-        }
+       // }
         
         io_count += node[node_i].stats.iops;
         node[node_i].stats.rw_sect = 0;
