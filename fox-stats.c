@@ -265,7 +265,7 @@ static void fox_show_progress (struct fox_node *node)
         //tot_sec += node[node_i].stats.rw_sect;
         //totalb += node[node_i].stats.brw_sec;
         
-        if (node[node_i].stats.flags & FOX_FLAG_DONE) {
+        if (!(node[node_i].stats.flags & FOX_FLAG_DONE)) {
             totalb = node[node_i].stats.brw_sec / (long double) (1024 * 1024);
             tot_sec = (node[node_i].stats.rw_sect / (long double) SEC64);
         
