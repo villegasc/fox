@@ -33,6 +33,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/queue.h>
+#include "nvm_provisioning.h"
 #include "fox.h"
 
 LIST_HEAD(node_list, fox_node) node_head = LIST_HEAD_INITIALIZER(node_head);
@@ -40,12 +41,12 @@ LIST_HEAD(eng_list, fox_engine) eng_head = LIST_HEAD_INITIALIZER(eng_head);
 
 static int fox_check_workload (struct fox_workload *wl)
 {
-    int pg_ppas = wl->geo.nsectors * wl->geo.nplanes;
+    int pg_ppas = wl->geo->nsectors * wl->geo->nplanes;
 
-    if (wl->channels > wl->geo.nchannels ||
-            wl->luns > wl->geo.nluns ||
-            wl->blks > wl->geo.nblocks ||
-            wl->pgs > wl->geo.npages ||
+    if (wl->channels > wl->geo->nchannels ||
+            wl->luns > wl->geo->nluns ||
+            wl->blks > wl->geo->nblocks ||
+            wl->pgs > wl->geo->npages ||
             wl->channels < 1 ||
             wl->luns < 1 ||
             wl->blks < 1 ||
@@ -141,6 +142,7 @@ int main (int argc, char **argv) {
     struct fox_workload *wl;
     struct fox_node *nodes;
     struct fox_stats *gl_stats;
+    int ret;
 
     if (argc != 28) {
         printf (" => Example: fox nvme0n1 runtime 0 ch 8 lun 4 blk 10 pg 128 "
@@ -148,7 +150,7 @@ int main (int argc, char **argv) {
                                                                   "engine 2\n");
         return -1;
     }
-
+    
     LIST_INIT(&eng_head);
 
     gl_stats = malloc (sizeof (struct fox_stats));
@@ -161,9 +163,9 @@ int main (int argc, char **argv) {
     pthread_cond_init (&wl->start_con, NULL);
 
     wl->runtime = atoi(argv[3]);
-    wl->devname = malloc(8);
-    wl->devname[7] = '\0';
-    memcpy(wl->devname, argv[1], 7);
+    wl->devname = malloc(13);
+    wl->devname[12] = '\0';
+    memcpy(wl->devname, argv[1], 12);
     wl->channels = atoi(argv[5]);
     wl->luns = atoi(argv[7]);
     wl->blks = atoi(argv[9]);
@@ -176,7 +178,14 @@ int main (int argc, char **argv) {
     wl->memcmp = atoi(argv[23]);
     wl->output = atoi(argv[25]);
     wl->dev = nvm_dev_open(wl->devname);
-    wl->geo = nvm_dev_attr_geo(wl->dev);
+    wl->geo = (struct nvm_geo*) get_geo(wl->dev);
+
+    nvm_geo_pr(wl->geo);
+    ret =init_free_blk_list(wl->dev, wl->geo);
+    if (ret){
+        printf("Init free block list failed.\n");
+        goto ERR;
+    }
 
     fox_init_engs(wl);
 
@@ -222,6 +231,7 @@ int main (int argc, char **argv) {
     fox_free_vblks(wl);
     fox_exit_threads (nodes);
     fox_exit_stats (gl_stats);
+    exit_free_blk_list();
 
     pthread_mutex_destroy (&wl->start_mut);
     pthread_cond_destroy (&wl->start_con);

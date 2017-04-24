@@ -116,9 +116,9 @@ struct fox_workload {
     uint8_t             output;
     uint64_t            runtime; /* u-seconds */
     struct fox_engine   *engine;
-    NVM_DEV             dev;
-    NVM_GEO             geo;
-    NVM_VBLK            *vblks;
+    struct nvm_dev      *dev;
+    struct nvm_geo      *geo;
+    struct nvm_vblk     *vblks;
     struct fox_stats    *stats;
     pthread_mutex_t     start_mut;
     pthread_cond_t      start_con;
@@ -130,10 +130,10 @@ struct fox_blkbuf {
 };
 
 struct fox_tgt_blk {
-    NVM_VBLK    vblk;
-    uint16_t    ch;
-    uint16_t    lun;
-    uint32_t    blk;
+    struct nvm_vblk	*vblk;
+    uint16_t    	ch;
+    uint16_t    	lun;
+    uint32_t    	blk;
 };
 
 struct fox_node {

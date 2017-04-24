@@ -5,6 +5,7 @@ OBJ += fox-stats.o
 OBJ += fox-vblk.o
 OBJ += fox-buf.o
 OBJ += fox-output.o
+OBJ += nvm_provisioning.o
 OBJ += engines/fox-sequential.o
 OBJ += engines/fox-round-robin.o
 CC = gcc
