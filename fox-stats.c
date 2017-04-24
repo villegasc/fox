@@ -216,7 +216,7 @@ void fox_merge_stats (struct fox_node *nodes, struct fox_stats *st)
 
 static void fox_show_progress (struct fox_node *node)
 {
-    int node_i, i;
+    int node_i, i, alive;
     uint16_t n_prog, wl_prog = 0;
     long double tot_sec = 0, totalb = 0, th, iops;
     uint64_t usec, io_count = 0;
@@ -232,9 +232,14 @@ static void fox_show_progress (struct fox_node *node)
         for (i = 0; i < node->wl->nthreads + 1; i++)
             rt[i] = fox_output_new_rt();
     }
+    
+    alive = node[0].wl->nthreads;
 
     printf ("\r");
     for (node_i = 0; node_i < node[0].wl->nthreads; node_i++) {
+        
+        if (node[node_i].stats.flags & FOX_FLAG_DONE)
+            alive--;
 
         n_prog = fox_get_progress(&node[node_i].stats);
         wl_prog += n_prog;
@@ -272,7 +277,7 @@ static void fox_show_progress (struct fox_node *node)
     wl_prog = (uint16_t) ((double) wl_prog / (double) node[0].wl->nthreads);
 
     totalb = totalb / (long double) (1024 * 1024);
-    tot_sec = (tot_sec / (long double) SEC64) / node[0].wl->nthreads;
+    tot_sec = (tot_sec / (long double) SEC64) / alive;
 
     th = (totalb == 0 || tot_sec == 0) ? 0 : totalb / tot_sec;
     iops = (io_count == 0 || tot_sec == 0) ?
