@@ -387,7 +387,8 @@ void fox_show_stats (struct fox_workload *wl, struct fox_node *node)
     tsec = st->runtime / (long double) SEC64;
     io_sec = (io_usec / (long double) SEC64) / wl->nthreads;
 
-    th = (io_sec) ? totb / io_sec : 0;
+    //th = (io_sec) ? totb / io_sec : 0;
+    th = (tsec) ? totb / tsec : 0;
 
     elat = (st->erased_blks) ? st->erase_t / st->erased_blks : 0;
     rlat = (st->pgs_r) ? st->read_t / (st->pgs_r & AND64) : 0;
