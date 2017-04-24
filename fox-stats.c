@@ -384,7 +384,7 @@ void fox_show_stats (struct fox_workload *wl, struct fox_node *node)
         io_sec = io_usec / (long double) SEC64;
         totb += node[i].stats.bread + node[i].stats.bwritten;
         th += (io_sec) ? totb / io_sec : 0;
-        printf("io_usec %llu, totb %llu\n",io_usec, totb);
+        printf("io_usec %Lf, totb %Lf\n",io_usec, totb);
     }
 
     tsec = st->runtime / (long double) SEC64;
