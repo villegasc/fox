@@ -372,7 +372,7 @@ void fox_monitor (struct fox_node *nodes)
 
 void fox_show_stats (struct fox_workload *wl, struct fox_node *node)
 {
-    long double th, totb = 0, tsec, io_usec = 0, io_sec;
+    long double th = 0, totb = 0, tsec, io_usec = 0, io_sec;
     uint64_t elat, rlat, wlat;
     int i;
     char line[80];
@@ -381,14 +381,15 @@ void fox_show_stats (struct fox_workload *wl, struct fox_node *node)
 
     for (i = 0; i < wl->nthreads; i++) {
         io_usec += node[i].stats.runtime;
+        io_sec = io_usec / (long double) SEC64;
         totb += node[i].stats.bread + node[i].stats.bwritten;
+        th += (io_sec) ? totb / io_sec : 0;
     }
 
     tsec = st->runtime / (long double) SEC64;
-    io_sec = (io_usec / (long double) SEC64) / wl->nthreads;
+    //io_sec = (io_usec / (long double) SEC64) / wl->nthreads;
 
-    //th = (io_sec) ? totb / io_sec : 0;
-    th = (tsec) ? totb / tsec : 0;
+    th = th / wl->nthreads;
 
     elat = (st->erased_blks) ? st->erase_t / st->erased_blks : 0;
     rlat = (st->pgs_r) ? st->read_t / (st->pgs_r & AND64) : 0;
