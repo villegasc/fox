@@ -267,7 +267,10 @@ static void fox_show_progress (struct fox_node *node)
         
        // if (!(node[node_i].stats.flags & FOX_FLAG_DONE)) {
             totalb = node[node_i].stats.brw_sec; // / (long double) (1024 * 1024);
-            tot_sec = (node[node_i].stats.rw_sect / (long double) SEC64);
+            tot_sec = node[node_i].stats.rw_sect;
+            node[node_i].stats.rw_sect -= tot_sec;
+            node[node_i].stats.brw_sec -= totalb;
+            tot_sec /= (long double) SEC64;
             
             //printf("total sec node %d: %Lf\n", node_i, tot_sec);
         
@@ -275,8 +278,8 @@ static void fox_show_progress (struct fox_node *node)
        // }
         
         io_count += node[node_i].stats.iops;
-        node[node_i].stats.rw_sect = 0;
-        node[node_i].stats.brw_sec = 0;
+        //node[node_i].stats.rw_sect = 0;
+        //node[node_i].stats.brw_sec = 0;
         node[node_i].stats.iops = 0;
 
         pthread_mutex_unlock(&node[node_i].stats.s_mutex);
