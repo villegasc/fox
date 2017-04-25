@@ -291,6 +291,8 @@ static void fox_show_progress (struct fox_node *node)
     iops = (io_count == 0 || tot_sec == 0) ?
                                           0 : (long double) io_count / tot_sec;
 
+    th = th / (long double) (1024 * 1024);
+    
     if (node->wl->output) {
         rt[0]->thpt = th;
         rt[0]->iops = iops;
