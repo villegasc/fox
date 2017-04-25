@@ -272,7 +272,7 @@ static void fox_show_progress (struct fox_node *node)
             node[node_i].stats.brw_sec -= totalb;
             tot_sec /= (long double) SEC64;
             
-            //printf("total sec node %d: %Lf\n", node_i, tot_sec);
+            printf("th node %d: %Lf\n", node_i, (totalb == 0 /*|| tot_sec == 0*/) ? 0 : totalb /  tot_sec);
         
             th += (totalb == 0 /*|| tot_sec == 0*/) ? 0 : totalb /  tot_sec;
        // }
