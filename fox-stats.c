@@ -384,7 +384,7 @@ void fox_monitor (struct fox_node *nodes)
 
 void fox_show_stats (struct fox_workload *wl, struct fox_node *node)
 {
-    long double th = 0, totb = 0, tsec, io_usec = 0, io_sec;
+    long double th = 0, totb = 0, tsec, io_usec = 0;//, io_sec;
     uint64_t elat, rlat, wlat;
     int i;
     char line[80];
@@ -393,7 +393,7 @@ void fox_show_stats (struct fox_workload *wl, struct fox_node *node)
 
     for (i = 0; i < wl->nthreads; i++) {
         //io_usec += node[i].stats.runtime;
-        io_sec = io_usec / (long double) SEC64;
+        //io_sec = io_usec / (long double) SEC64;
         totb += node[i].stats.bread + node[i].stats.bwritten;
         //th += (io_sec) ? totb / io_sec : 0;
         printf("io_usec %lu, totb %lu\n",node[i].stats.runtime, node[i].stats.bread + node[i].stats.bwritten);
