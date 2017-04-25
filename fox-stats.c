@@ -267,11 +267,11 @@ static void fox_show_progress (struct fox_node *node)
         
        // if (!(node[node_i].stats.flags & FOX_FLAG_DONE)) {
             totalb = node[node_i].stats.brw_sec; // / (long double) (1024 * 1024);
-            tot_sec = (node[node_i].stats.rw_sect / (long double) SEC64);
+            //tot_sec = (node[node_i].stats.rw_sect / (long double) SEC64);
             
             printf("total sec node %d: %Lf\n", node_i, tot_sec);
         
-            th += (totalb == 0 || tot_sec == 0) ? 0 : totalb ;/// tot_sec;
+            th += (totalb == 0 || tot_sec == 0) ? 0 : totalb / 0.5 ;/// tot_sec;
        // }
         
         io_count += node[node_i].stats.iops;
@@ -392,17 +392,17 @@ void fox_show_stats (struct fox_workload *wl, struct fox_node *node)
     struct fox_stats *st = wl->stats;
 
     for (i = 0; i < wl->nthreads; i++) {
-        io_usec += node[i].stats.runtime;
+        //io_usec += node[i].stats.runtime;
         io_sec = io_usec / (long double) SEC64;
         totb += node[i].stats.bread + node[i].stats.bwritten;
-        th += (io_sec) ? totb / io_sec : 0;
+        //th += (io_sec) ? totb / io_sec : 0;
         printf("io_usec %lu, totb %lu\n",node[i].stats.runtime, node[i].stats.bread + node[i].stats.bwritten);
     }
 
     tsec = st->runtime / (long double) SEC64;
     //io_sec = (io_usec / (long double) SEC64) / wl->nthreads;
 
-    //th = th / wl->nthreads;
+    th = totb / tsec;
 
     elat = (st->erased_blks) ? st->erase_t / st->erased_blks : 0;
     rlat = (st->pgs_r) ? st->read_t / (st->pgs_r & AND64) : 0;
