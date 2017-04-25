@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <stdio.h>
-#include "nvm_provisioning.h"
+#include "prov/nvm_provisioning.h"
 #include "fox.h"
 
 double fox_check_progress_pgs (struct fox_node *node)
@@ -59,7 +59,7 @@ int fox_write_blk (struct fox_tgt_blk *tgt, struct fox_node *node,
         cmd_pgs = (i + cmd_pgs > blkoff + npgs) ? blkoff + npgs - i : cmd_pgs;
         tot_bytes = node->wl->geo->page_nbytes * node->wl->geo->nplanes * cmd_pgs;
 
-        err = vblock_pwrite(tgt->vblk,
+        err = prov_vblock_pwrite(tgt->vblk,
                             buf->buf_w + node->wl->geo->page_nbytes * node->wl->geo->nplanes * i,
                             tot_bytes,
                             node->wl->geo->page_nbytes * node->wl->geo->nplanes * i);
@@ -128,7 +128,7 @@ int fox_read_blk (struct fox_tgt_blk *tgt, struct fox_node *node,
         cmd_pgs = (i + cmd_pgs > blkoff + npgs) ? blkoff + npgs - i : cmd_pgs;
         tot_bytes = node->wl->geo->page_nbytes * node->wl->geo->nplanes * cmd_pgs;
 
-        err = vblock_pread(tgt->vblk,
+        err = prov_vblock_pread(tgt->vblk,
                             buf->buf_r + node->wl->geo->page_nbytes * node->wl->geo->nplanes * i,
                             tot_bytes,
                             node->wl->geo->page_nbytes * node->wl->geo->nplanes * i);

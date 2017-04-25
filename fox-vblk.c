@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "nvm_provisioning.h"
+#include "prov/nvm_provisioning.h"
 #include "fox.h"
 
 int fox_vblk_tgt (struct fox_node *node, uint16_t chid, uint16_t lunid,
@@ -75,7 +75,10 @@ int fox_alloc_vblks (struct fox_workload *wl)
         fox_timestamp_tmp_start(wl->stats);
 
         /* TODO: treat error */
-        get_vblock(ch_i, lun_i, &(wl->vblks[blk_i]));
+        if(prov_get_vblock(ch_i, lun_i, &(wl->vblks[blk_i]))<0){
+            printf ("\nNot enough free blocks for workload\n");
+            return -1;
+        }
         fox_timestamp_end(FOX_STATS_ERASE_T, wl->stats);
         fox_set_stats (FOX_STATS_ERASED_BLK, wl->stats, 1);
 
@@ -95,7 +98,7 @@ void fox_free_vblks (struct fox_workload *wl)
     t_blks = wl->blks * wl->luns * wl->channels;
 
     for (blk_i = 0; blk_i < t_blks; blk_i++)
-        put_vblock(&(wl->vblks[blk_i]));
+        prov_put_vblock(&(wl->vblks[blk_i]));
 
     free (wl->vblks);
 }

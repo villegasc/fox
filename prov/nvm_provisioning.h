@@ -1,10 +1,3 @@
-/* 
- * File:   nvm_provisioning.h
- * Author: thesis
- *
- * Created on April 7, 2017, 11:45 AM
- */
-
 #include <sys/queue.h>
 #include <liblightnvm.h>
 
@@ -13,11 +6,6 @@
 #ifndef NVM_PROVISIONING_H
 #define	NVM_PROVISIONING_H
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-    
-    //static char nvm_dev_path[NVM_DEV_PATH_LEN] = "/dev/nvme0n1";
     
     enum IO_TYPE {
         NVM_RD = 0x0,	///< Flag for read op
@@ -57,38 +45,42 @@ extern "C" {
         struct nvm_lun* free_blks;
     };
 
-    int init_free_blk_list(struct nvm_dev* dev, const struct nvm_geo* geo);
+    struct v_dev virt_dev;
 
-    int exit_free_blk_list();
+    int prov_init_fblk_list(struct nvm_dev* dev, const struct nvm_geo* geo);
 
-    int gen_list_per_lun(int ch, int l);
-    
-    struct nvm_vblk* alloc_vblk(struct nvm_dev* dev, struct nvm_addr* addr);
+    int prov_exit_fblk_list();
 
-    const struct nvm_geo* get_geo(struct nvm_dev* dev);
+    int prov_gen_list_per_lun(int ch, int l);
     
-    const struct nvm_bbt* get_bbt(struct nvm_dev *dev, struct nvm_addr addr, 
-            struct nvm_ret *ret);
-    
-    int get_vblock(size_t ch, size_t lun, struct nvm_vblk* vblk);
-    
-    int put_vblock(struct nvm_vblk* vblock);
+    struct nvm_vblk* prov_alloc_vblk(struct nvm_dev* dev, 
+                                struct nvm_addr* addr);
 
-    ssize_t vblock_pread(struct nvm_vblk* vblk, void* buf, size_t count, 
+    const struct nvm_geo* prov_get_geo(struct nvm_dev* dev);
+    
+    const struct nvm_bbt* prov_get_bbt(struct nvm_dev *dev, 
+                              struct nvm_addr addr, struct nvm_ret *ret);
+    
+    int prov_get_vblock(size_t ch, size_t lun, struct nvm_vblk* vblk);
+    
+    int prov_put_vblock(struct nvm_vblk* vblock);
+
+    ssize_t prov_vblock_pread(struct nvm_vblk* vblk, void* buf, size_t count, 
                 size_t offset);
     
-    ssize_t vblock_pwrite(struct nvm_vblk* vblk, const void* buf, size_t count, 
-                size_t offset);
+    ssize_t prov_vblock_pwrite(struct nvm_vblk* vblk, const void* buf, 
+                            size_t count, size_t offset);
     
-    ssize_t vblock_erase(struct nvm_vblk* vblk);
+    ssize_t prov_vblock_pwrite_next(struct nvm_vblk* vblk, const void* buf, 
+                            size_t count);
 
-    void free_blk_pr();
+    ssize_t prov_vblock_erase(struct nvm_vblk* vblk);
 
-    void nvm_lun_pr(struct nvm_lun lun);
+    void prov_fblk_pr();
 
-#ifdef	__cplusplus
-}
-#endif
+    void prov_lun_pr(struct nvm_lun lun);
+
+    void prov_dev_pr();
 
 #endif	/* NVM_PROVISIONING_H */
 

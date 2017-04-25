@@ -33,7 +33,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/queue.h>
-#include "nvm_provisioning.h"
+#include "prov/nvm_provisioning.h"
 #include "fox.h"
 
 LIST_HEAD(node_list, fox_node) node_head = LIST_HEAD_INITIALIZER(node_head);
@@ -178,10 +178,10 @@ int main (int argc, char **argv) {
     wl->memcmp = atoi(argv[23]);
     wl->output = atoi(argv[25]);
     wl->dev = nvm_dev_open(wl->devname);
-    wl->geo = (struct nvm_geo*) get_geo(wl->dev);
+    wl->geo = (struct nvm_geo*) prov_get_geo(wl->dev);
 
     nvm_geo_pr(wl->geo);
-    ret =init_free_blk_list(wl->dev, wl->geo);
+    ret =prov_init_fblk_list(wl->dev, wl->geo);
     if (ret){
         printf("Init free block list failed.\n");
         goto ERR;
@@ -231,7 +231,7 @@ int main (int argc, char **argv) {
     fox_free_vblks(wl);
     fox_exit_threads (nodes);
     fox_exit_stats (gl_stats);
-    exit_free_blk_list();
+    prov_exit_fblk_list();
 
     pthread_mutex_destroy (&wl->start_mut);
     pthread_cond_destroy (&wl->start_con);
