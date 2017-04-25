@@ -24,4 +24,4 @@ fox : $(OBJ)
 	$(CC) $(CFLAGS) $(CFLAGSXX) $(OBJ) -o fox $(LLNVM) $(SLIB)
 
 clean:
-	rm -f *.o engines/*.o fox
+	rm -f *.o engines/*.o prov/*.o fox
