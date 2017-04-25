@@ -266,10 +266,10 @@ static void fox_show_progress (struct fox_node *node)
         //totalb += node[node_i].stats.brw_sec;
         
        // if (!(node[node_i].stats.flags & FOX_FLAG_DONE)) {
-            totalb = node[node_i].stats.brw_sec / (long double) (1024 * 1024);
+            totalb = node[node_i].stats.brw_sec; // / (long double) (1024 * 1024);
             tot_sec = (node[node_i].stats.rw_sect / (long double) SEC64);
         
-            th += (totalb == 0 || tot_sec == 0) ? 0 : totalb / tot_sec;
+            th += (totalb == 0 || tot_sec == 0) ? 0 : totalb ;/// tot_sec;
        // }
         
         io_count += node[node_i].stats.iops;
