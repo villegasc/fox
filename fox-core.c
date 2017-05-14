@@ -226,7 +226,7 @@ int main (int argc, char **argv) {
         goto MUTEX;
     }
 
-    wl->geo = prov_get_geo(wl->dev);;
+    wl->geo = prov_get_geo(wl->dev);
 
     if (prov_init(wl->dev, wl->geo))
         goto DEV_CLOSE;
@@ -304,7 +304,6 @@ MUTEX:
     pthread_cond_destroy (&wl->start_con);
     pthread_mutex_destroy (&wl->monitor_mut);
     pthread_cond_destroy (&wl->monitor_con);
-
     free (wl);
 GL_STATS:
     free (gl_stats);
