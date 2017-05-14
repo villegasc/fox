@@ -212,7 +212,7 @@ int main (int argc, char **argv) {
     wl->memcmp = argp->memcmp;
     wl->output = argp->output;
 
-    if (wl->devname[0] == 0) {
+    if (argp->devname[0] == 0) {
         wl->devname = malloc (13);
         if (!wl->devname)
             return -1;
@@ -226,7 +226,7 @@ int main (int argc, char **argv) {
         goto MUTEX;
     }
 
-    wl->geo = prov_get_geo(wl->dev);;
+    wl->geo = prov_get_geo(wl->dev);
 
     if (prov_init(wl->dev, wl->geo))
         goto DEV_CLOSE;
@@ -299,12 +299,13 @@ EXIT_PROV:
     prov_exit ();
 DEV_CLOSE:
     prov_dev_close(wl->dev);
+    if(argp->devname[0] == 0)
+        free(wl->devname);
 MUTEX:
     pthread_mutex_destroy (&wl->start_mut);
     pthread_cond_destroy (&wl->start_con);
     pthread_mutex_destroy (&wl->monitor_mut);
     pthread_cond_destroy (&wl->monitor_con);
-
     free (wl);
 GL_STATS:
     free (gl_stats);
