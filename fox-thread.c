@@ -251,4 +251,6 @@ void fox_exit_threads (struct fox_node *nodes)
         fox_exit_stats (&nodes[i].stats);
     }
     free (nodes);
+    free(th_ch);
+    free(nodes_ch);
 }

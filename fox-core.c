@@ -226,7 +226,7 @@ int main (int argc, char **argv) {
         goto MUTEX;
     }
 
-    wl->geo = prov_get_geo(wl->dev);;
+    wl->geo = prov_get_geo(wl->dev);
 
     if (prov_init(wl->dev, wl->geo))
         goto DEV_CLOSE;
@@ -299,6 +299,7 @@ EXIT_PROV:
     prov_exit ();
 DEV_CLOSE:
     prov_dev_close(wl->dev);
+    free(wl->devname);
 MUTEX:
     pthread_mutex_destroy (&wl->start_mut);
     pthread_cond_destroy (&wl->start_con);

@@ -34,7 +34,6 @@
  * of free and used blocks.
  * Manages bad block table updates.
  */
-   
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -52,39 +51,53 @@ int prov_init(struct nvm_dev *dev, const struct nvm_geo *geo)
 {
     int lun, err_lun;
     int nluns;
-    
-    srand(time (NULL));
-    
+    int nblocks;
+
+    srand(time(NULL));
+
     virt_dev.dev = dev;
     virt_dev.geo = geo;
-    
+
     nluns = virt_dev.geo->nchannels * virt_dev.geo->nluns;
     nblocks = virt_dev.geo->nblocks;
-    
-    virt_dev.luns = malloc(nluns * sizeof(struct prov_lun));  /*1*/
+
+    virt_dev.luns = malloc(nluns * sizeof(struct prov_lun));
     if (!virt_dev.luns)
         return -1;
-    
-    virt_dev.prov_vblks = malloc( nluns * nblocks * sizeof(struct prov_vblk)); /*2*/
+
+    virt_dev.prov_vblks = malloc(nluns * sizeof(struct prov_vblk *));
     if (!virt_dev.prov_vblks)
         goto FREE_LUNS;
-    
-    for (lun = 0; lun < total_luns; lun++){
-        if( prov_vblk_list_create(lun) < 0 ){
+
+    for (lun = 0; lun < nluns; lun++) {
+        virt_dev.prov_vblks[lun] = malloc(nblocks * 
+                                           sizeof(struct prov_vblk));
+
+        if (!virt_dev.prov_vblks[lun]) {
             for (err_lun = 0; err_lun < lun; err_lun++)
-                prov_vblk_list_free(err_lun);
+                free(virt_dev.prov_vblks[err_lun]);
             goto FREE_VBLKS;
         }
-    
+
+        if (prov_vblk_list_create(lun) < 0) {
+            for (err_lun = 0; err_lun < lun; err_lun++)
+                prov_vblk_list_free(err_lun);
+            goto FREE_VBLKS_LUN;
+        }
+    }
+
     return 0;
 
-FREE_VBLKS:
-    free(virt_dev.prov_vblks);
-            
-FREE_LUNS:
-    free(virt_dev.luns);
+  FREE_VBLKS_LUN:
+    for (err_lun = 0; err_lun < nluns; err_lun++)
+        free(virt_dev.prov_vblks[err_lun]);
 
-    return -1; 
+  FREE_VBLKS:
+    free(virt_dev.prov_vblks);
+
+  FREE_LUNS:
+    free(virt_dev.luns);
+    return -1;
 }
 
 int prov_exit(void)
@@ -93,138 +106,142 @@ int prov_exit(void)
     int nluns;
 
     nluns = virt_dev.geo->nchannels * virt_dev.geo->nluns;
-    
-    for (lun = 0; lun < total_luns; lun++)
+
+    for (lun = 0; lun < nluns; lun++) {
         if (prov_vblk_list_free(lun))
             return -1;
-    
-    free(virt_dev.prov_vblks);  /*2*/
-    free(virt_dev.luns);        /*1*/
-    
+        free(virt_dev.prov_vblks[lun]);
+    }
+
+    free(virt_dev.prov_vblks);
+    free(virt_dev.luns);
+
     return 0;
 }
 
 int prov_vblk_list_create(int lun)
 {
     int blk;
-    int bad_blk;
     int nblk;
-    struct nvm_addr addr = 0x0;
+    struct nvm_addr addr;
     const struct nvm_bbt *bbt;
     struct nvm_ret ret;
-    
+
+    addr.ppa = 0x0;
     addr.g.ch = lun / virt_dev.geo->nluns;
     addr.g.lun = lun % virt_dev.geo->nluns;
     virt_dev.luns[lun].addr = addr;
     nblk = virt_dev.geo->nblocks;
-    
+
     bbt = prov_get_bbt(virt_dev.dev, addr, &ret);
     if (!bbt)
         return -1;
-    
+
+    virt_dev.luns[lun].nfree_blks = 0;
+    virt_dev.luns[lun].nused_blks = 0;
     CIRCLEQ_INIT(&(virt_dev.luns[lun].free_blk_head));
     CIRCLEQ_INIT(&(virt_dev.luns[lun].used_blk_head));
     pthread_mutex_init(&(virt_dev.luns[lun].l_mutex), NULL);
-    
-    for (blk = 0; blk < nblk; blk++){
+
+    for (blk = 0; blk < nblk; blk++) {
         prov_vblk_alloc(bbt, lun, blk);
     }
-    
+
     return 0;
 }
 
 int prov_vblk_list_free(int lun)
 {
     int nblk;
-    struct prov_vblk *vblk;
-    
+    int blk;
+    struct prov_vblk *vblk, *tmp;
+
     nblk = virt_dev.geo->nblocks;
-    
-    for (blk = 0; blk < nblk; blk++)
-        prov_free_vblk(lun, blk);
-    
-    vblk = CIRCLEQ_FIRST(&(virt_dev.luns[lun].free_blk_head))
-    while ( vblk != NULL ){
-        CIRCLEQ_REMOVE(vblk, entry);
+
+    if (virt_dev.luns[lun].nfree_blks > 0) {
         vblk = CIRCLEQ_FIRST(&(virt_dev.luns[lun].free_blk_head));
+
+        for (blk = 0; blk < virt_dev.luns[lun].nfree_blks; blk++) {
+            tmp = CIRCLEQ_NEXT(vblk, entry);
+            CIRCLEQ_REMOVE(&(virt_dev.luns[lun].free_blk_head),
+                           vblk, entry);
+            vblk = tmp;
+        }
     }
-    
-    vblk = CIRCLEQ_FIRST(&(virt_dev.luns[lun].used_blk_head))
-    while ( vblk != NULL ){
-        CIRCLEQ_REMOVE(vblk, entry);
+
+    if (virt_dev.luns[lun].nused_blks > 0) {
         vblk = CIRCLEQ_FIRST(&(virt_dev.luns[lun].used_blk_head));
+
+        for (blk = 0; blk < virt_dev.luns[lun].nused_blks; blk++) {
+            tmp = CIRCLEQ_NEXT(vblk, entry);
+            CIRCLEQ_REMOVE(&(virt_dev.luns[lun].used_blk_head),
+                           vblk, entry);
+            vblk = tmp;
+        }
     }
-    
-    pthread_mutex_destroy (&(virt_dev.luns[lun].l_mutex));
-    
+
+    for (blk = 0; blk < nblk; blk++) {
+        prov_vblk_free(lun, blk);
+    }
+
+    pthread_mutex_destroy(&(virt_dev.luns[lun].l_mutex));
+
     return 0;
 }
 
 int prov_vblk_alloc(const struct nvm_bbt *bbt, int lun, int blk)
 {
+    int pl;
     int bad_blk = 0;
-    struct prov_vblk* vblk = virt_dev.prov_vblks[lun][blk];
-    
-    vblk = malloc (sizeof(struct prov_vblk));   /*3*/
-    if (vblk == NULL)
-        goto FAIL;
-    
-    vblk->state = malloc (8 * nplanes);         /*4*/
+    struct prov_vblk *vblk = &(virt_dev.prov_vblks[lun][blk]);
+
+    vblk->state = malloc(8 * virt_dev.geo->nplanes);
     if (vblk->state == NULL)
-        goto FREE_VBLK;
-    
-    vblk.addr = virt_dev.luns[lun].addr;
-    vblk.addr.g.blk = blk;
-        
-    for (pl = 0; pl < nplanes; pl++) {
-        vblk->state[pl] = bbt->blks[blk + pl];
+        return -1;
+
+    vblk->addr = virt_dev.luns[lun].addr;
+    vblk->addr.g.blk = blk;
+
+    for (pl = 0; pl < virt_dev.geo->nplanes; pl++) {
+        vblk->state[pl] = bbt->blks[virt_dev.geo->nplanes * blk + pl];
         bad_blk += vblk->state[pl];
     }
-        
-    if (!bad_blk){           
-        virt_dev.luns[lun].nfree_blks++;
+
+    if (!bad_blk) {
         struct prov_vblk *rnd_vblk = prov_vblk_rand(lun);
-        if (rnd_vblk == NULL)
-            goto FREE_STATE;
-        
-        CIRCLEQ_INSERT_AFTER(   
-                                &(virt_dev.luns[lun]->free_blk_head), 
-                                rnd_vblk, 
-                                vblk, 
-                                entry
-                );
+
+        if (rnd_vblk == NULL) {
+            CIRCLEQ_INSERT_HEAD(&(virt_dev.luns[lun].free_blk_head),
+                                vblk, entry);
+        } else {
+            CIRCLEQ_INSERT_AFTER(&(virt_dev.luns[lun].free_blk_head),
+                                 rnd_vblk, vblk, entry);
+        }
+        virt_dev.luns[lun].nfree_blks++;
     }
-    return 0;  
-
-FREE_STATE:
-    free(vblk->state);
-
-FREE_VBLK:
-    free(vblk);
-
-FAIL:
-    return -1;    
+    return 0;
 }
 
 int prov_vblk_free(int lun, int blk)
 {
-    struct prov_vblk* vblk = virt_dev.prov_vblks[lun][blk];
-    free(vblk->state);                  /*3*/
-    free(vblk);                         /*4*/
+    free(virt_dev.prov_vblks[lun][blk].state);
+    return 0;
 }
 
 struct prov_vblk *prov_vblk_rand(int lun)
 {
     int blk, blk_idx;
     struct prov_vblk *vblk, *tmp;
-    
-    if (virt_dev.luns[lun].nfree_blks > 0){
+
+    if (virt_dev.luns[lun].nfree_blks > 0) {
         blk_idx = rand() % virt_dev.luns[lun].nfree_blks;
-        vblk = CIRCLEQ_FIRST(&(virt_dev.luns[lun]->free_blk_head));
-        for (blk = 0; blk < blk_idx; blk++){
+        vblk = CIRCLEQ_FIRST(&(virt_dev.luns[lun].free_blk_head));
+
+        for (blk = 0; blk < blk_idx; blk++) {
             tmp = CIRCLEQ_NEXT(vblk, entry);
-	    vblk = tmp;
+            vblk = tmp;
         }
+
         return vblk;
     }
     return NULL;
@@ -245,116 +262,166 @@ const struct nvm_geo *prov_get_geo(struct nvm_dev *dev)
     return nvm_dev_get_geo(dev);
 }
 
-const struct nvm_bbt *prov_get_bbt(struct nvm_dev *dev, 
-                                   struct nvm_addr addr, struct nvm_ret *ret)
+const struct nvm_bbt *prov_get_bbt(struct nvm_dev *dev,
+                                   struct nvm_addr addr,
+                                   struct nvm_ret *ret)
 {
     return nvm_bbt_get(dev, addr, ret);
 }
 
-ssize_t prov_vblk_pread(struct nvm_vblk *vblk, void *buf, size_t count,
-                                                                size_t offset)
+ssize_t prov_vblk_pread(struct nvm_vblk * vblk, void *buf, size_t count,
+                        size_t offset)
 {
     ssize_t nbytes = nvm_vblk_pread(vblk, buf, count, offset);
-    return nbytes;
-}
-    
-ssize_t prov_vblk_pwrite(struct nvm_vblk *vblk, const void *buf, 
-                                                  size_t count, size_t offset)
-{
-    ssize_t nbytes = nvm_vblk_pwrite(vblk, buf, count, offset);
-    
+
     return nbytes;
 }
 
-ssize_t prov_vblk_erase(struct nvm_vblk *vblk)
+ssize_t prov_vblk_pwrite(struct nvm_vblk * vblk, const void *buf,
+                         size_t count, size_t offset)
+{
+    ssize_t nbytes = nvm_vblk_pwrite(vblk, buf, count, offset);
+
+    return nbytes;
+}
+
+ssize_t prov_vblk_erase(struct nvm_vblk * vblk)
 {
     struct nvm_ret ret;
     int pmode;
     int err;
-    
+
     pmode = nvm_dev_get_pmode(virt_dev.dev);
     if (nvm_dev_set_pmode(virt_dev.dev, 0x0) < 0)
         goto FAIL;
-    
+
     err = nvm_vblk_erase(vblk);
-    if ( err < 0){
-        nvm_bbt_mark(vblk->dev, vblk->blks, 1, 1, &ret);
+    if (err < 0) {
         goto FAIL;
     }
-    
+
     if (nvm_dev_set_pmode(virt_dev.dev, pmode) < 0)
         goto FAIL;
-    
+
     return err;
-    
-FAIL:
+
+  FAIL:
     return -1;
 }
 
-int prov_vblk_get(int ch, int l)
+int prov_bbt_mark(struct prov_vblk *vblk){
+
+    int lun, blk;
+
+    nvm_bbt_mark(vblk->blk->dev, vblk->blk->blks, 1, 1, &ret);
+    lun = vblk->addr.g.ch * virt_dev.geo->nluns + vblk->addr.g.lun;
+    blk = vblk->addr.g.blk;
+
+    for (pl = 0; pl < virt_dev.geo->nplanes; pl++)
+        virt_dev.prov_vblks[lun][blk].state[pl] = 1;
+
+    return 0;    
+}
+
+struct nvm_vblk *prov_vblk_get(int ch, int l)
 {
     int lun;
-    int err;
-    
-    struct nvm_addr addr = 0x0;
-    addr.g.ch = ch;
-    addr.g.lun = l;
-    
+
     lun = ch * virt_dev.geo->nluns + l;
-    
+
     struct prov_lun *p_lun = &virt_dev.luns[lun];
-    
-    if (p_lun->nfree_blks > 0){
-        
-        struct prov_vblk *vblk = CIRCLEQ_LAST(&(p_lun->free_bkl_head));
-        vblk->blk = nvm_vblk_alloc(virt_dev.dev, &addr, 1);
+
+    if (p_lun->nfree_blks > 0) {
+
+        struct prov_vblk *vblk = CIRCLEQ_FIRST(&p_lun->free_blk_head);
+
+        pthread_mutex_lock(&(p_lun->l_mutex));
+
+        CIRCLEQ_REMOVE(&(p_lun->free_blk_head), vblk, entry);
+        CIRCLEQ_INSERT_TAIL(&(p_lun->used_blk_head), vblk, entry);
+
+        p_lun->nfree_blks--;
+        p_lun->nused_blks++;
+
+        pthread_mutex_unlock(&(p_lun->l_mutex));
+
+        vblk->blk = nvm_vblk_alloc(virt_dev.dev, &vblk->addr, 1);
         if (vblk->blk == NULL)
             goto FAIL;
-        
-        if(prov_vblock_erase(vblk->blk) < 0) {
+
+        if (prov_vblk_erase(vblk->blk) < 0) {
+	    prov_bbt_mark(vblk);
             nvm_vblk_free(vblk->blk);
             goto FAIL;
         }
-        
-        pthread_mutex_lock(&(p_lun->l_mutex));
-        
-        CIRCLEQ_INSERT_HEAD(&(p_lun->used_blk_head), vblk, entry);
-        CIRCLEQ_REMOVE(&(p_lun->free_blk_head), vblk, entry);
-        p_lun->nfree_blks--;
-        
-        pthread_mutex_unlock(&(p_lun->l_mutex));
-        
-        return 0;
+
+        return vblk->blk;
     }
-FAIL:
-    return -1;
+  FAIL:
+    return NULL;
 }
 
-int prov_vblk_put(struct nvm_vblk* vblk)
+int prov_vblk_put(struct nvm_vblk *vblk)
 {
     int ch, l, blk;
     int lun;
-    int err;
-    
-    ch = vblk->blks[0].addr.g.ch;
-    l = vblk->blks[0].addr.g.lun;
-    blk = vblk->blks[0].addr.g.blk;
-    
+
+    ch = vblk->blks[0].g.ch;
+    l = vblk->blks[0].g.lun;
+    blk = vblk->blks[0].g.blk;
+
     lun = ch * virt_dev.geo->nluns + l;
-            
-    if (nvm_vblk_free(vblk) < 0)
-        return -1;
-        
+    struct prov_lun *p_lun = &virt_dev.luns[lun];
+
+    nvm_vblk_free(vblk);
+
     pthread_mutex_lock(&(p_lun->l_mutex));
-        
-    CIRCLEQ_INSERT_HEAD(&(p_lun->free_blk_head), 
-                        virt_dev.prov_vblks[lun][blk], 
-                        entry);
     CIRCLEQ_REMOVE(&(p_lun->used_blk_head),
-                        virt_dev.prov_vblks[lun][blk], 
-                        entry);
+                   &virt_dev.prov_vblks[lun][blk], entry);
+    CIRCLEQ_INSERT_TAIL(&(p_lun->free_blk_head),
+                        &virt_dev.prov_vblks[lun][blk], entry);
     p_lun->nfree_blks++;
+    p_lun->nused_blks--;
     pthread_mutex_unlock(&(p_lun->l_mutex));
-        
-    return 0;  
+
+    return 0;
+}
+
+void prov_lun_pr()
+{
+    int lun, blk;
+    int nluns, nblks, ublks;
+    struct prov_vblk *vblk, *tmp;
+
+    nluns = virt_dev.geo->nchannels * virt_dev.geo->nluns;
+    printf("Total luns: %d\n---------\n", nluns);
+
+    for (lun = 0; lun < nluns; lun++) {
+        printf("%d : %d free, %d used.\n", lun,
+               virt_dev.luns[lun].nfree_blks,
+               virt_dev.luns[lun].nused_blks);
+
+        nvm_addr_pr(virt_dev.luns[lun].addr);
+        printf("-FREE BLOCKS-\n");
+        nblks = virt_dev.luns[lun].nfree_blks;
+        ublks = virt_dev.luns[lun].nused_blks;
+        vblk = CIRCLEQ_FIRST(&(virt_dev.luns[lun].free_blk_head));
+        tmp = CIRCLEQ_LAST(&(virt_dev.luns[lun].free_blk_head));
+
+        for (blk = 0; blk < nblks; blk++) {
+            tmp = CIRCLEQ_NEXT(vblk, entry);
+            nvm_addr_pr(vblk->addr);
+            vblk = tmp;
+        }
+        printf("-USED BLOCKS-\n");
+        vblk = CIRCLEQ_FIRST(&(virt_dev.luns[lun].used_blk_head));
+        tmp = CIRCLEQ_LAST(&(virt_dev.luns[lun].used_blk_head));
+
+        for (blk = 0; blk < ublks; blk++) {
+            tmp = CIRCLEQ_NEXT(vblk, entry);
+            nvm_addr_pr(vblk->addr);
+            vblk = tmp;
+        }
+        printf("---------\n");
+    }
 }
